@@ -30,7 +30,7 @@ if __name__ == "__main__":
         queries.append(topics[qid]["title"])
         qids.append(str(qid))
 
-    results = searcher.batch_search(queries=queries, qids=qids, k=100, threads=32)
+    results = searcher.batch_search(queries=queries, qids=qids, k=100, threads=16)
 
     with open(f"run.beir.bm25-flat.{args.dataset}.txt", "w") as f:
         for qid, hits in tqdm(results.items()):
