@@ -10,14 +10,7 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         required=True,
-        choices=[
-            "scifact",
-            "arguana",
-            "fiqa",
-            "dbpedia-entity",
-            "trec-news",
-            "climate-fever",
-        ],
+        choices=["trec-covid", "trec-news", "scifact"],
     )
     args = parser.parse_args()
 
