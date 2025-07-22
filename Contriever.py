@@ -16,7 +16,7 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         required=True,
-        choices=["trec-covid", "trec-news", "scifact"],
+        choices=["trec-covid", "nfcorpus", "fiqa", "scifact"],
     )
     parser.add_argument(
         "--k",
