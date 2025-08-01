@@ -39,12 +39,11 @@ if __name__ == "__main__":
     results = searcher.batch_search(
         queries=queries, qids=qids, k=args.top_k, threads=16
     )
-    
+
     with open(f"run.beir.bm25-flat.{args.dataset}.txt", "w") as f:
         for qid, hits in tqdm(results.items()):
+            hits = [hit for hit in hits if hit.docid != qid]
             for rank, doc in enumerate(hits):
-                if qid == doc.docid:
-                    continue
                 f.write(f"{qid} Q0 {doc.docid} {rank+1} {doc.score} Anserini\n")
 
     commands = [
