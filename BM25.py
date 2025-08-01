@@ -43,8 +43,8 @@ if __name__ == "__main__":
     with open(f"run.beir.bm25-flat.{args.dataset}.txt", "w") as f:
         for qid, hits in tqdm(results.items()):
             hits = [hit for hit in hits if hit.docid != qid]
-            for rank, doc in enumerate(hits):
-                f.write(f"{qid} Q0 {doc.docid} {rank+1} {doc.score} Anserini\n")
+            for rank, hit in enumerate(hits):
+                f.write(f"{qid} Q0 {hit.docid} {rank+1} {hit.score} Anserini\n")
 
     commands = [
         f"python -m pyserini.eval.trec_eval -c -m ndcg_cut.{args.ndcg_cutoff} beir-v1.0.0-{args.dataset}-test run.beir.bm25-flat.{args.dataset}.txt",
