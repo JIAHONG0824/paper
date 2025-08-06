@@ -4,6 +4,7 @@ from pyserini.search import get_topics
 from tqdm import tqdm
 import subprocess
 import argparse
+import time
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -17,7 +18,7 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         required=True,
-        choices=["trec-covid", "nfcorpus", "fiqa", "scifact"],
+        choices=["trec-covid", "nq", "fiqa", "scifact"],
     )
     parser.add_argument(
         "--top_k", type=int, default=100, help="Number of hits to return."
