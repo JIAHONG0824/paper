@@ -33,15 +33,15 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.model == "facebook/contriever":
-        _model = "contriever"
-    else:
-        _model = "contriever-msmarco"
+    model_map = {
+        "facebook/contriever": "contriever",
+        "facebook/contriever-msmarco": "contriever-msmarco",
+    }
 
     topics = get_topics(f"beir-v1.0.0-{args.dataset}-test")
     encoder = AutoQueryEncoder(encoder_dir=args.model, pooling="mean", device="cuda:1")
     searcher = FaissSearcher.from_prebuilt_index(
-        f"beir-v1.0.0-{args.dataset}.{_model}", query_encoder=encoder
+        f"beir-v1.0.0-{args.dataset}.{model_map[args.model]}", query_encoder=encoder
     )
 
     queries = []
@@ -54,16 +54,16 @@ if __name__ == "__main__":
         queries=queries, q_ids=q_ids, k=args.top_k, threads=16
     )
 
-    with open(f"run.beir.{_model}.{args.dataset}.txt", "w") as f:
+    with open(f"run.beir.{model_map[args.model]}.{args.dataset}.txt", "w") as f:
         for qid, hits in tqdm(results.items()):
             hits = [hit for hit in hits if hit.docid != qid]
             for rank, hit in enumerate(hits):
                 f.write(f"{qid} Q0 {hit.docid} {rank+1} {hit.score} Faiss\n")
 
     commands = [
-        f"python -m pyserini.eval.trec_eval -c -m ndcg_cut.{args.ndcg_cutoff} beir-v1.0.0-{args.dataset}-test run.beir.{_model}.{args.dataset}.txt",
-        f"python -m pyserini.eval.trec_eval -c -m recall.{args.recall_cutoffs[0]} beir-v1.0.0-{args.dataset}-test run.beir.{_model}.{args.dataset}.txt",
-        f"python -m pyserini.eval.trec_eval -c -m recall.{args.recall_cutoffs[1]} beir-v1.0.0-{args.dataset}-test run.beir.{_model}.{args.dataset}.txt",
+        f"python -m pyserini.eval.trec_eval -c -m ndcg_cut.{args.ndcg_cutoff} beir-v1.0.0-{args.dataset}-test run.beir.{model_map[args.model]}.{args.dataset}.txt",
+        f"python -m pyserini.eval.trec_eval -c -m recall.{args.recall_cutoffs[0]} beir-v1.0.0-{args.dataset}-test run.beir.{model_map[args.model]}.{args.dataset}.txt",
+        f"python -m pyserini.eval.trec_eval -c -m recall.{args.recall_cutoffs[1]} beir-v1.0.0-{args.dataset}-test run.beir.{model_map[args.model]}.{args.dataset}.txt",
     ]
     for command in commands:
         print(
