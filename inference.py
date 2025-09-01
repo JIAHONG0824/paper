@@ -2,6 +2,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 from tqdm import tqdm
 import ir_datasets
 import json
+
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
@@ -15,7 +16,7 @@ if __name__ == "__main__":
 
     tokenizer = T5Tokenizer.from_pretrained(model_name)
     model = T5ForConditionalGeneration.from_pretrained(
-        model_name, torch_dtype=torch.bfloat16, device_map="cuda"
+        model_name, torch_dtype=torch.bfloat16, device_map="auto"
     )
     model.eval()
     model = torch.compile(model)
@@ -23,10 +24,7 @@ if __name__ == "__main__":
     dataset = ir_datasets.load("beir/fiqa")
     corpus = []
     for doc in dataset.docs_iter():
-        if (
-            not doc.text
-            or len(tokenizer.encode(doc.text, max_length=512, truncation=True)) < 50
-        ):
+        if not doc.text:
             continue
         corpus.append((doc.doc_id, doc.text))
     print(f"Corpus Size:", len(corpus))
