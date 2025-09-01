@@ -1,22 +1,22 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from tqdm import tqdm
+import argparse
 import ir_datasets
 import json
-
-import os
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import torch
 
 if __name__ == "__main__":
-    batch_size = 32
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--device", type=str, required=True)
+    args = parser.parse_args()
+    batch_size = 16
     num_return_sequences = 50
 
     model_name = "doc2query/all-t5-base-v1"
 
     tokenizer = T5Tokenizer.from_pretrained(model_name)
     model = T5ForConditionalGeneration.from_pretrained(
-        model_name, torch_dtype=torch.bfloat16, device_map="auto"
+        model_name, torch_dtype=torch.bfloat16, device_map=args.device
     )
     model.eval()
     model = torch.compile(model)
