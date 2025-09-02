@@ -1,23 +1,22 @@
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 from tqdm import tqdm
-import argparse
 import ir_datasets
-import json
+import argparse
 import torch
+import json
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, required=True)
     args = parser.parse_args()
-    batch_size = 16
-    num_return_sequences = 50
+    batch_size = 4
+    num_return_sequences = 100
 
-    model_name = "doc2query/all-t5-base-v1"
-
+    model_name = "mymodel"
     tokenizer = T5Tokenizer.from_pretrained(model_name)
     model = T5ForConditionalGeneration.from_pretrained(
-        model_name, torch_dtype=torch.bfloat16, device_map=args.device
-    )
+        model_name, torch_dtype=torch.bfloat16
+    ).to(args.device)
     model.eval()
     model = torch.compile(model)
 
@@ -61,6 +60,6 @@ if __name__ == "__main__":
             h[doc_id] = all_queries[start_index:end_index]
 
     # Save results
-    with open("all-t5-base-v1-DE.json", "w") as f:
+    with open("mymodel-DE.json", "w") as f:
         json.dump(h, f, indent=4, ensure_ascii=False)
-    print("Finished generating and saved to all-t5-base-v1-DE.json")
+    print("Finished generating and saved to mymodel-DE.json")
