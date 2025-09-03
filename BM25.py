@@ -1,6 +1,6 @@
 from pyserini.search.lucene import LuceneSearcher
-from pyserini.search import get_topics
 from tqdm import tqdm
+import ir_datasets
 import subprocess
 import argparse
 
@@ -10,10 +10,10 @@ if __name__ == "__main__":
         "--dataset",
         type=str,
         required=True,
-        choices=["trec-covid", "nfcorpus", "fiqa", "scifact"],
+        choices=["fiqa", "scifact"],
     )
     parser.add_argument(
-        "--top_k", type=int, default=100, help="Number of hits to return."
+        "--top_k", type=int, default=1000, help="Number of hits to return."
     )
     parser.add_argument("--ndcg_cutoff", type=int, default=10, help="nDCG@k")
     parser.add_argument(
@@ -28,17 +28,15 @@ if __name__ == "__main__":
     searcher = LuceneSearcher.from_prebuilt_index(
         prebuilt_index_name=f"beir-v1.0.0-{args.dataset}.flat", verbose=True
     )
-    topics = get_topics(f"beir-v1.0.0-{args.dataset}-test")
+    dataset = ir_datasets.load(f"beir/{args.dataset}/test")
 
     queries = []
     qids = []
-    for qid in topics:
-        qids.append(str(qid))
-        queries.append(topics[qid]["title"])
+    for query in dataset.queries_iter():
+        queries.append(query.text)
+        qids.append(query.query_id)
 
-    results = searcher.batch_search(
-        queries=queries, qids=qids, k=args.top_k, threads=16
-    )
+    results = searcher.batch_search(queries=queries, qids=qids, k=args.top_k, threads=8)
 
     with open(f"run.beir.bm25-flat.{args.dataset}.txt", "w") as f:
         for qid, hits in tqdm(results.items()):
