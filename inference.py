@@ -1,65 +1,53 @@
-from transformers import T5Tokenizer, T5ForConditionalGeneration
-from tqdm import tqdm
+import pyterrier_doc2query
 import ir_datasets
 import argparse
-import torch
 import json
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", type=str, required=True)
+    parser.add_argument("--model", type=str, default="doc2query/all-t5-base-v1")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        required=True,
+    )
+    parser.add_argument("--num_samples", type=int, default=20)
+    parser.add_argument("--batch_size", type=int, default=20)
     args = parser.parse_args()
-    batch_size = 4
-    num_return_sequences = 100
-
-    model_name = "mymodel"
-    tokenizer = T5Tokenizer.from_pretrained(model_name)
-    model = T5ForConditionalGeneration.from_pretrained(
-        model_name, torch_dtype=torch.bfloat16
-    ).to(args.device)
-    model.eval()
-    model = torch.compile(model)
-
-    dataset = ir_datasets.load("beir/fiqa")
+    dataset = ir_datasets.load(f"beir/{args.dataset}")
+    print("Corpus size:", dataset.docs_count())
     corpus = []
     for doc in dataset.docs_iter():
-        if not doc.text:
-            continue
-        corpus.append((doc.doc_id, doc.text))
-    print(f"Corpus Size:", len(corpus))
-
-    # batch inference
-    h = {}
-    for i in tqdm(range(0, len(corpus), batch_size), desc="Generating Queries"):
-        batch = corpus[i : i + batch_size]
-        batch_ids = [item[0] for item in batch]
-        batch_documents = [item[1] for item in batch]
-
-        inputs = tokenizer(
-            batch_documents,
-            max_length=512,
-            truncation=True,
-            padding=True,
-            return_tensors="pt",
-        ).to(model.device)
-
-        with torch.no_grad():
-            outputs = model.generate(
-                **inputs,
-                max_length=128,
-                do_sample=True,
-                top_p=0.95,
-                num_return_sequences=num_return_sequences,
+        try:
+            corpus.append({"id": doc.doc_id, "text": f"{doc.title}\n{doc.text}"})
+        except AttributeError:
+            if not doc.text:
+                continue
+            corpus.append({"id": doc.doc_id, "text": doc.text})
+    print("non-empty docs:", len(corpus))
+    doc2query = pyterrier_doc2query.Doc2Query(
+        checkpoint=args.model,
+        num_samples=args.num_samples,
+        batch_size=args.batch_size,
+        verbose=True,
+        fast_tokenizer=True,
+        device="cuda:1",
+    )
+    DE = doc2query(corpus)
+    with open(
+        f"{args.model.split('/')[-1]}_{args.dataset}_querygen:{args.num_samples}.jsonl",
+        "w",
+    ) as f:
+        for item in DE:
+            f.write(
+                json.dumps(
+                    {
+                        "id": item["id"],
+                        "text": item["text"],
+                        "querygen": item["querygen"].split("\n"),
+                    }
+                )
+                + "\n"
             )
-
-        all_queries = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-
-        for j, doc_id in enumerate(batch_ids):
-            start_index = j * num_return_sequences
-            end_index = start_index + num_return_sequences
-            h[doc_id] = all_queries[start_index:end_index]
-
-    # Save results
-    with open("mymodel-DE.json", "w") as f:
-        json.dump(h, f, indent=4, ensure_ascii=False)
-    print("Finished generating and saved to mymodel-DE.json")
+    print("Done!")
