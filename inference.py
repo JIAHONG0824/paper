@@ -42,6 +42,6 @@ if __name__ == "__main__":
     )
     results = doc2query(corpus)
     DE = {result["id"]: result["querygen"].split("\n") for result in results}
-    with open(f"all-t5-base-v1_{args.dataset}_gen{args.num_samples}.json", "r") as f:
+    with open(f"all-t5-base-v1_{args.dataset}_gen{args.num_samples}.json", "w") as f:
         json.dump(DE, f)
     print("Saved to:", f"all-t5-base-v1_{args.dataset}_gen{args.num_samples}.json")
