@@ -1,80 +1,64 @@
-import numpy as np
-import ir_datasets
-import random
-import json
-from collections import defaultdict
-from pyserini.encode import AutoQueryEncoder, AutoDocumentEncoder
+from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
-from transformers import T5Tokenizer
-
-device = "cuda:1"
-
-q_encoder = AutoQueryEncoder(
-    encoder_dir="facebook/contriever", device=device, pooling="mean", l2_norm=False
-)
-d_encoder = AutoDocumentEncoder(
-    model_name="facebook/contriever", device=device, pooling="mean", l2_norm=False
-)
-dataset = ir_datasets.load("beir/fiqa/dev")
-
-tokenizer = T5Tokenizer.from_pretrained("doc2query/all-t5-base-v1")
-
-doc_map = {}
-for doc in dataset.docs_iter():
-    if len(tokenizer.encode(doc.text, truncation=True, max_length=512)) <= 79:
-        continue
-    doc_map[doc.doc_id] = doc.text
-
-query_map = {}
-for query in dataset.queries_iter():
-    query_map[query.query_id] = query.text
-
-qrel_map = defaultdict(list)
-for qrel in dataset.qrels_iter():
-    qrel_map[qrel.query_id].append(qrel.doc_id)
-
-# DE = {}
-with open("DE-deduplicated.json", "r") as f:
-    DE = json.load(f)
-    # for line in f:
-    #     item = json.loads(line)
-    #     DE[item["id"]] = item["querygen"]
+import argparse
+import json
 
 
-with open("fiqa-dev-DPO.jsonl", "w") as f:
-    for qid, doc_ids in tqdm(qrel_map.items()):
-        q = query_map[qid]
-        q_emb = q_encoder.encode(q)
-        for doc_id in doc_ids:
-            if doc_id not in doc_map:
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="SentenceTransformer model name",
+    )
+    parser.add_argument(
+        "--type",
+        type=str,
+        choices=["train", "dev"],
+        required=True,
+    )
+    args = parser.parse_args()
+
+    model = SentenceTransformer(args.model, device="cuda:1")
+
+    datas = []
+    with open(f"{args.type}_DE.jsonl", "r") as f:
+        for line in f:
+            document, query, querygen = json.loads(line).values()
+            datas.append((document, query, querygen))
+    with open(f"{args.type}-dpo.jsonl", "w") as f:
+        for document, query, querygen in tqdm(datas):
+            document_embeddings = model.encode_document(document)
+            query_embeddings = model.encode_query(query)
+            baseline = model.similarity(query_embeddings, document_embeddings).item()
+            new_document = [
+                f"{document}\n{generated_query}" for generated_query in querygen
+            ]
+            new_document_embeddings = model.encode_document(new_document)
+            max_gain = float("-inf")
+            gains = []
+            for i, (generated_query, new_document_embedding) in enumerate(
+                zip(querygen, new_document_embeddings)
+            ):
+                score = model.similarity(
+                    query_embeddings, new_document_embedding
+                ).item()
+                gain = score - baseline
+                gains.append((gain, generated_query))
+            max_gain = max(gains, key=lambda x: x[0])[0]
+            if max_gain <= 0:
                 continue
-            doc = doc_map[doc_id]
-            doc_emb = d_encoder.encode(doc, max_length=512)[0]
-            baseline = np.dot(q_emb, doc_emb)
-            queries = DE[doc_id]
-            new_docs = [f"{query}\n{doc}" for query in queries]
-            new_docs_embs = d_encoder.encode(new_docs, max_length=512)
-
-            cur_max = float("-inf")
-            chosen = None
-            rejected = []
-            for i, (query, new_doc_emb) in enumerate(zip(queries, new_docs_embs)):
-                score = np.dot(q_emb, new_doc_emb)
-                if score > baseline:
-                    if score > cur_max:
-                        cur_max = score
-                        chosen = query
-                else:
-                    rejected.append(query)
-            if not chosen:
-                chosen = q
-            if not rejected:
-                rejected.append(q)
-            random.shuffle(rejected)
-            for i in range(len(rejected[:10])):
-                f.write(
-                    json.dumps(
-                        {"prompt": doc, "chosen": chosen, "rejected": rejected[i]}
-                    )
-                    + "\n"
+            gains.sort(key=lambda x: x[0], reverse=True)
+            chosen = gains[0][1]
+            rejected = gains[-1][1]
+            f.write(
+                json.dumps(
+                    {
+                        "prompt": document,
+                        "chosen": chosen,
+                        "rejected": rejected,
+                    }
                 )
+                + "\n"
+            )
