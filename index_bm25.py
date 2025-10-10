@@ -6,9 +6,19 @@ import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_jsonl", type=str, required=True)
-    parser.add_argument("--k", type=int, default=0)
-    parser.add_argument("--index_dir", type=str, required=True)
+    parser.add_argument("--index_dir", type=str, required=True, help="index directory")
+    parser.add_argument(
+        "-k",
+        type=int,
+        default=0,
+        help="Number of generated queries from the 'querygen' field to use for document expansion. (default: 0,no expansion)",
+    )
+    parser.add_argument(
+        "--input_jsonl",
+        type=str,
+        required=True,
+        help="input jsonl file, each line is {doc_id:...,document:...,querygen:...}",
+    )
     args = parser.parse_args()
 
     os.makedirs("corpus", exist_ok=True)
