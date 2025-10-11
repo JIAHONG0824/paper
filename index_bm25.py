@@ -6,19 +6,9 @@ import os
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--index_dir", type=str, required=True, help="index directory")
-    parser.add_argument(
-        "-k",
-        type=int,
-        default=0,
-        help="Number of generated queries from the 'querygen' field to use for document expansion. (default: 0,no expansion)",
-    )
-    parser.add_argument(
-        "--input_jsonl",
-        type=str,
-        required=True,
-        help="input jsonl file, each line is {doc_id:...,document:...,querygen:...}",
-    )
+    parser.add_argument("--index_dir", type=str, required=True)
+    parser.add_argument("--k", type=int, default=0)
+    parser.add_argument("--input_jsonl", type=str, required=True)
     args = parser.parse_args()
 
     os.makedirs("corpus", exist_ok=True)
@@ -28,12 +18,12 @@ if __name__ == "__main__":
             data = json.loads(line)
             doc_id = data["doc_id"]
             document = data["document"]
-            expanded_queries = data.get("querygen", [])
+            querygen = data.get("querygen", [])
             fout.write(
                 json.dumps(
                     {
                         "id": doc_id,
-                        "contents": "\n".join([document] + expanded_queries[: args.k]),
+                        "contents": "\n".join([document] + querygen[: args.k]),
                     }
                 )
                 + "\n"
