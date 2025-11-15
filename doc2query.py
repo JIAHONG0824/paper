@@ -28,15 +28,17 @@ if __name__ == "__main__":
             id, document = item["id"], item["document"]
             datas.append((id, document))
 
+    batch_size = 128
+    nums = 5
     for round in range(1, 6):
         set_seed(round)
         with open(f"{args.output_dir}/{round}.jsonl", "w") as fout:
-            for i in tqdm(range(0, len(datas), 64)):
-                ids = [x[0] for x in datas[i : i + 64]]
-                texts = [x[1] for x in datas[i : i + 64]]
+            for i in tqdm(range(0, len(datas), batch_size)):
+                ids = [x[0] for x in datas[i : i + batch_size]]
+                texts = [x[1] for x in datas[i : i + batch_size]]
                 input_ids = tokenizer(
                     texts,
-                    max_length=384,
+                    max_length=512,
                     truncation=True,
                     return_tensors="pt",
                     padding=True,
@@ -46,16 +48,16 @@ if __name__ == "__main__":
                     max_length=64,
                     do_sample=True,
                     top_k=10,
-                    num_return_sequences=10,
+                    num_return_sequences=nums,
                 )
                 queries = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-                for j in range(0, len(queries), 10):
+                for j in range(0, len(queries), nums):
                     fout.write(
                         json.dumps(
                             {
-                                "id": ids[j // 10],
-                                "document": texts[j // 10],
-                                "generated_queries": queries[j : j + 10],
+                                "id": ids[j // nums],
+                                "document": texts[j // nums],
+                                "generated_queries": queries[j : j + nums],
                             }
                         )
                         + "\n"
