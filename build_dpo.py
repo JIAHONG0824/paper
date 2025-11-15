@@ -1,8 +1,16 @@
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 import argparse
+import torch
 import json
 
+prefix = {
+    "facebook/contriever": None,
+    "facebook/contriever-msmarco": None,
+    "BAAI/bge-base-en-v1.5": {
+        "query": "Represent this sentence for searching relevant passages:",
+    },
+}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -10,54 +18,52 @@ if __name__ == "__main__":
         "--model",
         type=str,
         required=True,
-        help="SentenceTransformer model name",
     )
     parser.add_argument(
-        "--type",
+        "--input_jsonl",
         type=str,
-        choices=["train", "dev"],
         required=True,
     )
+    parser.add_argument("--output_jsonl", type=str, required=True)
     args = parser.parse_args()
 
-    model = SentenceTransformer(args.model, device="cuda:1")
+    model = SentenceTransformer(args.model, device="cuda:1", prompts=prefix[args.model])
 
     datas = []
-    with open(f"{args.type}_DE.jsonl", "r") as f:
+    with open(args.input_jsonl, "r") as f:
         for line in f:
-            document, query, querygen = json.loads(line).values()
-            datas.append((document, query, querygen))
-    with open(f"{args.type}-dpo.jsonl", "w") as f:
-        for document, query, querygen in tqdm(datas):
-            document_embeddings = model.encode_document(document)
-            query_embeddings = model.encode_query(query)
-            baseline = model.similarity(query_embeddings, document_embeddings).item()
-            new_document = [
-                f"{document}\n{generated_query}" for generated_query in querygen
-            ]
-            new_document_embeddings = model.encode_document(new_document)
-            max_gain = float("-inf")
-            gains = []
-            for i, (generated_query, new_document_embedding) in enumerate(
-                zip(querygen, new_document_embeddings)
-            ):
-                score = model.similarity(
-                    query_embeddings, new_document_embedding
-                ).item()
-                gain = score - baseline
-                gains.append((gain, generated_query))
-            max_gain = max(gains, key=lambda x: x[0])[0]
-            if max_gain <= 0:
+            item = json.loads(line)
+            document, query, generated_queries = (
+                item["document"],
+                item["query"],
+                item["generated_queries"],
+            )
+            datas.append((document, query, generated_queries))
+    with open(args.output_jsonl, "w") as f:
+        for document, query, generated_queries in tqdm(datas):
+            query_embeddings = model.encode_query(query, convert_to_tensor=True)
+            document_embeddings = model.encode_document(
+                document, convert_to_tensor=True
+            )
+            baseline = document_embeddings @ query_embeddings
+
+            temp = [f"{document}\n{qg}" for qg in generated_queries]
+            temp_embeddings = model.encode_document(temp, convert_to_tensor=True)
+
+            scores = temp_embeddings @ query_embeddings
+            gains = scores - baseline
+
+            best_idx = torch.argmax(gains)
+            worst_idx = torch.argmin(gains)
+            if gains[best_idx] <= 0 or gains[worst_idx] >= 0:
                 continue
-            gains.sort(key=lambda x: x[0], reverse=True)
-            chosen = gains[0][1]
-            rejected = gains[-1][1]
+
             f.write(
                 json.dumps(
                     {
                         "prompt": document,
-                        "chosen": chosen,
-                        "rejected": rejected,
+                        "chosen": generated_queries[best_idx],
+                        "rejected": generated_queries[worst_idx],
                     }
                 )
                 + "\n"
