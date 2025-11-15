@@ -17,6 +17,7 @@ if __name__ == "__main__":
     model = T5ForConditionalGeneration.from_pretrained(
         args.model, dtype=torch.bfloat16, device_map="cuda:1"
     )
+    model.eval()
     print(model.dtype)
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -42,7 +43,7 @@ if __name__ == "__main__":
                     truncation=True,
                     return_tensors="pt",
                     padding=True,
-                ).input_ids.to("cuda:1")
+                ).input_ids.to(model.device)
                 outputs = model.generate(
                     input_ids,
                     max_length=64,
