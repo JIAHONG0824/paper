@@ -6,6 +6,7 @@ import json
 import os
 
 prefix = {
+    "facebook/contriever": None,
     "facebook/contriever-msmarco": None,
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
@@ -19,6 +20,7 @@ if __name__ == "__main__":
         type=str,
         required=True,
         choices=[
+            "facebook/contriever",
             "facebook/contriever-msmarco",
             "BAAI/bge-base-en-v1.5",
         ],
@@ -28,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("--input_jsonl", type=str, required=True)
     args = parser.parse_args()
 
-    model = SentenceTransformer(args.model, device="cuda:0", prompts=prefix[args.model])
+    model = SentenceTransformer(args.model, device="cuda:1", prompts=prefix[args.model])
 
     os.makedirs("corpus", exist_ok=True)
 
@@ -43,7 +45,10 @@ if __name__ == "__main__":
                 item.get("generated_queries", []),
             )
             # Here we combine the document with its generated queries
-            text = "\n".join([document] + generated_queries[: args.k])
+            if args.model == "facebook/contriever":
+                text = " ".join(generated_queries[: args.k] + [document])
+            else:
+                text = " ".join([document] + generated_queries[: args.k])
             datas.append((id, text))
     with open("corpus/corpus.jsonl", "w") as fout:
         for i in tqdm(range(0, len(datas), 64)):
