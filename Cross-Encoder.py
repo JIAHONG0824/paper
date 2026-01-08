@@ -5,9 +5,7 @@ import torch
 import json
 
 if __name__ == "__main__":
-    model = CrossEncoder(
-        "BAAI/bge-reranker-base", device="cuda:1", activation_fn=torch.nn.Identity()
-    )
+    model = CrossEncoder("BAAI/bge-reranker-v2-m3")
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_jsonl", type=str, required=True)
     parser.add_argument("--output_jsonl", type=str, required=True)
