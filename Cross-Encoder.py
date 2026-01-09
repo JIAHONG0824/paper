@@ -5,7 +5,9 @@ import torch
 import json
 
 if __name__ == "__main__":
-    model = CrossEncoder("BAAI/bge-reranker-v2-m3")
+    model = CrossEncoder(
+        "BAAI/bge-reranker-v2-m3", model_kwargs={"torch_dtype": "bfloat16"}
+    )
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_jsonl", type=str, required=True)
     parser.add_argument("--output_jsonl", type=str, required=True)
@@ -19,6 +21,7 @@ if __name__ == "__main__":
                 data["query"],
                 data["generated_queries"],
             )
+            # (query, document) order for CrossEncoder
             pairs = [(qg, document) for qg in generated_queries]
             rewards = model.predict(pairs, convert_to_tensor=True)
             maximum = torch.argmax(rewards)
