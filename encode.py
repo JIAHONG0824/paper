@@ -51,8 +51,6 @@ if __name__ == "__main__":
                 text = " ".join([document] + generated_queries[: args.k])
             datas.append((id, text))
 
-    datas.sort(key=lambda x: len(x[1]))
-
     with open("corpus/corpus.jsonl", "w") as f:
         for i in tqdm(range(0, len(datas), 64)):
             ids = [x[0] for x in datas[i : i + 64]]
