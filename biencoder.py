@@ -4,7 +4,10 @@ import argparse
 import json
 
 prefix = {
-    "facebook/contriever-msmarco": None,
+    "intfloat/e5-base-v2": {
+        "query": "query: ",
+        "document": "passage: ",
+    },
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
     },
@@ -16,7 +19,7 @@ if __name__ == "__main__":
         "--model",
         type=str,
         required=True,
-        choices=["facebook/contriever-msmarco", "BAAI/bge-base-en-v1.5"],
+        choices=["intfloat/e5-base-v2", "BAAI/bge-base-en-v1.5"],
     )
     parser.add_argument("--input_jsonl", type=str, required=True)
     parser.add_argument("--device", type=str, required=True)
