@@ -28,9 +28,12 @@ if __name__ == "__main__":
     parser.add_argument("--index_dir", type=str, required=True)
     parser.add_argument("--k", type=int, default=0)
     parser.add_argument("--input_jsonl", type=str, required=True)
+    parser.add_argument("--device", type=str, required=True)
     args = parser.parse_args()
 
-    model = SentenceTransformer(args.model, device="cuda:1", prompts=prefix[args.model])
+    model = SentenceTransformer(
+        args.model, device=args.device, prompts=prefix[args.model]
+    )
 
     os.makedirs("corpus", exist_ok=True)
 
