@@ -5,7 +5,10 @@ import argparse
 import json
 
 prefix = {
-    "facebook/contriever-msmarco": None,
+    "intfloat/e5-base-v2": {
+        "query": "query: ",
+        "document": "passage: ",
+    },
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
     },
@@ -18,7 +21,7 @@ if __name__ == "__main__":
         "--model",
         type=str,
         required=True,
-        choices=["facebook/contriever-msmarco", "BAAI/bge-base-en-v1.5"],
+        choices=["intfloat/e5-base-v2", "BAAI/bge-base-en-v1.5"],
     )
     parser.add_argument("--input_jsonl", type=str, required=True)
     parser.add_argument("--output_jsonl", type=str, required=True)
@@ -28,7 +31,6 @@ if __name__ == "__main__":
     model = SentenceTransformer(
         args.model, device=args.device, prompts=prefix[args.model]
     )
-
     with open(args.input_jsonl, "r") as f, open(args.output_jsonl, "w") as out:
         for line in tqdm(f):
             item = json.loads(line)
@@ -41,8 +43,8 @@ if __name__ == "__main__":
             anchor = model.encode_query(generated_queries, convert_to_tensor=True).mean(
                 dim=0
             )
-            a = model.similarity(d_emb, anchor)
-            mixed = a * d_emb + (1 - a) * anchor
+            s = model.similarity(d_emb, anchor)
+            mixed = s * d_emb + (1 - s) * anchor
             mixed = F.normalize(mixed, p=2, dim=1).squeeze(0)
 
             out.write(
