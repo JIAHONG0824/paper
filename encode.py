@@ -6,8 +6,10 @@ import json
 import os
 
 prefix = {
-    "facebook/contriever": None,
-    "facebook/contriever-msmarco": None,
+    "intfloat/e5-base-v2": {
+        "query": "query: ",
+        "document": "passage: ",
+    },
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
     },
@@ -20,8 +22,7 @@ if __name__ == "__main__":
         type=str,
         required=True,
         choices=[
-            "facebook/contriever",
-            "facebook/contriever-msmarco",
+            "intfloat/e5-base-v2",
             "BAAI/bge-base-en-v1.5",
         ],
     )
@@ -48,17 +49,14 @@ if __name__ == "__main__":
                 item.get("generated_queries", []),
             )
             # Here we combine the document with its generated queries
-            if args.model == "facebook/contriever":
-                text = " ".join(generated_queries[: args.k] + [document])
-            else:
-                text = " ".join([document] + generated_queries[: args.k])
-            datas.append((id, text))
+            document = " ".join([document] + generated_queries[: args.k])
+            datas.append((id, document))
 
     with open("corpus/corpus.jsonl", "w") as f:
         for i in tqdm(range(0, len(datas), 64)):
             ids = [x[0] for x in datas[i : i + 64]]
-            texts = [x[1] for x in datas[i : i + 64]]
-            vectors = model.encode_document(texts, convert_to_tensor=False)
+            documents = [x[1] for x in datas[i : i + 64]]
+            vectors = model.encode_document(documents, convert_to_tensor=False)
             for id, vector in zip(ids, vectors):
                 f.write(
                     json.dumps(
