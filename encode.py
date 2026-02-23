@@ -33,7 +33,7 @@ if __name__ == "__main__":
         args.model, device=args.device, prompts=prefix[args.model]
     )
     if args.model == "facebook/contriever-msmarco":
-        model.add_module("normalize", models.Normalize())
+        model.add_module(str(len(model)), models.Normalize())
 
     os.makedirs("corpus", exist_ok=True)
 
