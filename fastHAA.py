@@ -1,14 +1,11 @@
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
 from tqdm import tqdm
 import torch.nn.functional as F
 import argparse
 import json
 
 prefix = {
-    "intfloat/e5-base-v2": {
-        "query": "query: ",
-        "document": "passage: ",
-    },
+    "facebook/contriever-msmarco": None,
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
     },
@@ -21,7 +18,7 @@ if __name__ == "__main__":
         "--model",
         type=str,
         required=True,
-        choices=["intfloat/e5-base-v2", "BAAI/bge-base-en-v1.5"],
+        choices=["facebook/contriever-msmarco", "BAAI/bge-base-en-v1.5"],
     )
     parser.add_argument("--input_jsonl", type=str, required=True)
     parser.add_argument("--output_jsonl", type=str, required=True)
@@ -31,6 +28,8 @@ if __name__ == "__main__":
     model = SentenceTransformer(
         args.model, device=args.device, prompts=prefix[args.model]
     )
+    if args.model == "facebook/contriever-msmarco":
+        model.add_module(str(len(model)), models.Normalize())
     with open(args.input_jsonl, "r") as f, open(args.output_jsonl, "w") as out:
         for line in tqdm(f):
             item = json.loads(line)
@@ -43,9 +42,11 @@ if __name__ == "__main__":
             anchor = model.encode_query(generated_queries, convert_to_tensor=True).mean(
                 dim=0
             )
-            s = model.similarity(d_emb, anchor)
+            d_emb = F.normalize(d_emb, p=2, dim=0)
+            anchor = F.normalize(anchor, p=2, dim=0)
+            s = (d_emb * anchor).sum()
             mixed = s * d_emb + (1 - s) * anchor
-            mixed = F.normalize(mixed, p=2, dim=1).squeeze(0)
+            mixed = F.normalize(mixed, p=2, dim=0)
 
             out.write(
                 json.dumps(
