@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import SentenceTransformer, CrossEncoder, models
 from pyserini.search.lucene import LuceneSearcher
 from pyserini.search.faiss import FaissSearcher
 from datasets import load_dataset
@@ -7,10 +7,7 @@ import argparse
 import time
 
 prefix = {
-    "intfloat/e5-base-v2": {
-        "query": "query: ",
-        "document": "passage: ",
-    },
+    "facebook/contriever-msmarco": None,
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
     },
@@ -32,6 +29,8 @@ if __name__ == "__main__":
             prompts=prefix[args.model],
             default_prompt_name="query",
         )
+        if args.model == "facebook/contriever-msmarco":
+            model.add_module(str(len(model)), models.Normalize())
         searcher = FaissSearcher(index_dir="hc3", query_encoder=model)
     else:
         searcher = LuceneSearcher(index_dir="hc3")
