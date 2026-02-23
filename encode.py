@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
 from tqdm import tqdm
 import subprocess
 import argparse
@@ -6,10 +6,7 @@ import json
 import os
 
 prefix = {
-    "intfloat/e5-base-v2": {
-        "query": "query: ",
-        "document": "passage: ",
-    },
+    "facebook/contriever-msmarco": None,
     "BAAI/bge-base-en-v1.5": {
         "query": "Represent this sentence for searching relevant passages:",
     },
@@ -22,7 +19,7 @@ if __name__ == "__main__":
         type=str,
         required=True,
         choices=[
-            "intfloat/e5-base-v2",
+            "facebook/contriever-msmarco",
             "BAAI/bge-base-en-v1.5",
         ],
     )
@@ -35,6 +32,8 @@ if __name__ == "__main__":
     model = SentenceTransformer(
         args.model, device=args.device, prompts=prefix[args.model]
     )
+    if args.model == "facebook/contriever-msmarco":
+        model.add_module("normalize", models.Normalize())
 
     os.makedirs("corpus", exist_ok=True)
 
