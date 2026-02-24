@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer, models
+from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 import subprocess
 import argparse
@@ -24,7 +24,6 @@ if __name__ == "__main__":
         ],
     )
     parser.add_argument("--index_dir", type=str, required=True)
-    parser.add_argument("--k", type=int, default=0)
     parser.add_argument("--input_jsonl", type=str, required=True)
     parser.add_argument("--device", type=str, required=True)
     args = parser.parse_args()
@@ -32,9 +31,6 @@ if __name__ == "__main__":
     model = SentenceTransformer(
         args.model, device=args.device, prompts=prefix[args.model]
     )
-    if args.model == "facebook/contriever-msmarco":
-        model.add_module(str(len(model)), models.Normalize())
-
     os.makedirs("corpus", exist_ok=True)
 
     datas = []
@@ -48,14 +44,16 @@ if __name__ == "__main__":
                 item.get("generated_queries", []),
             )
             # Here we combine the document with its generated queries
-            document = " ".join([document] + generated_queries[: args.k])
+            document = "\n".join([document] + generated_queries)
             datas.append((id, document))
 
     with open("corpus/corpus.jsonl", "w") as f:
         for i in tqdm(range(0, len(datas), 64)):
             ids = [x[0] for x in datas[i : i + 64]]
             documents = [x[1] for x in datas[i : i + 64]]
-            vectors = model.encode_document(documents, convert_to_tensor=False)
+            vectors = model.encode_document(
+                documents, convert_to_tensor=False, normalize_embeddings=True
+            )
             for id, vector in zip(ids, vectors):
                 f.write(
                     json.dumps(
