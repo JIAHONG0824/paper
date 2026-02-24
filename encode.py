@@ -1,4 +1,4 @@
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, models
 from tqdm import tqdm
 import subprocess
 import argparse
@@ -31,6 +31,9 @@ if __name__ == "__main__":
     model = SentenceTransformer(
         args.model, device=args.device, prompts=prefix[args.model]
     )
+    if args.model == "facebook/contriever-msmarco":
+        model.add_module(str(len(model)), models.Normalize())
+
     os.makedirs("corpus", exist_ok=True)
 
     datas = []
@@ -51,9 +54,7 @@ if __name__ == "__main__":
         for i in tqdm(range(0, len(datas), 64)):
             ids = [x[0] for x in datas[i : i + 64]]
             documents = [x[1] for x in datas[i : i + 64]]
-            vectors = model.encode_document(
-                documents, convert_to_tensor=False, normalize_embeddings=True
-            )
+            vectors = model.encode_document(documents)
             for id, vector in zip(ids, vectors):
                 f.write(
                     json.dumps(
