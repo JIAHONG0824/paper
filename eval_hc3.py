@@ -1,5 +1,4 @@
 from sentence_transformers import SentenceTransformer, CrossEncoder, models
-from pyserini.search.lucene import LuceneSearcher
 from pyserini.search.faiss import FaissSearcher
 from datasets import load_dataset
 import pandas as pd
@@ -15,25 +14,28 @@ prefix = {
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="BM25")
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        choices=["facebook/contriever-msmarco", "BAAI/bge-base-en-v1.5"],
+    )
     parser.add_argument("--device", type=str, required=True)
     parser.add_argument(
         "--rerank", action="store_true", help="是否進行第二階段 reranking"
     )
     args = parser.parse_args()
 
-    if args.model != "BM25":
-        model = SentenceTransformer(
-            args.model,
-            device=args.device,
-            prompts=prefix[args.model],
-            default_prompt_name="query",
-        )
-        if args.model == "facebook/contriever-msmarco":
-            model.add_module(str(len(model)), models.Normalize())
-        searcher = FaissSearcher(index_dir="hc3", query_encoder=model)
-    else:
-        searcher = LuceneSearcher(index_dir="hc3")
+    model = SentenceTransformer(
+        args.model,
+        device=args.device,
+        prompts=prefix[args.model],
+        default_prompt_name="query",
+    )
+    if args.model == "facebook/contriever-msmarco":
+        model.add_module(str(len(model)), models.Normalize())
+
+    searcher = FaissSearcher(index_dir="hc3", query_encoder=model)
 
     ds = load_dataset("mteb/HC3FinanceRetrieval", "qrels")
     qrels = pd.DataFrame(ds["test"])
